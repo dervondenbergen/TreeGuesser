@@ -1,0 +1,171 @@
+
+<!DOCTYPE html>
+<html>
+<head> 
+	<title>QGIS2leaf webmap</title>
+	
+	<meta charset="utf-8" />
+	<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.2/leaflet.css" /> <!-- we will us e this as the styling script for our webmap-->
+	<link rel="stylesheet" href="css/MarkerCluster.css" />
+	<link rel="stylesheet" href="css/MarkerCluster.Default.css" />
+	<link rel="stylesheet" type="text/css" href="css/own_style.css">
+	<script src="http://code.jquery.com/jquery-1.11.1.min.js"></script> <!-- this is the javascript file that does the magic-->
+	<script src="js/Autolinker.min.js"></script>
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+</head>
+<body>
+	<div id="map"></div> <!-- this is the initial look of the map. in most cases it is done externally using something like a map.css stylesheet were you can specify the look of map elements, like background color tables and so on.-->
+	<div class="guess">
+		<input type="number" pattern="[0-9]"><input type="submit" value="Guess">
+	</div>
+	<script src="http://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.2/leaflet.js"></script> <!-- this is the javascript file that does the magic-->
+	<script src="js/leaflet.markercluster.js"></script>
+	
+	<script src='data/exp_OGRGeoJSON.js' ></script>
+				
+	<script>
+		var map = L.map('map', { zoomControl:true }).fitBounds([[48.1177868514,16.1520607098],[48.3219408794,16.5962394834]]);
+	var feature_group = new L.featureGroup([]);
+
+	var raster_group = new L.LayerGroup([]);
+	
+	var basemap= L.tileLayer('http://{s}.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg');	
+	basemap.addTo(map);	
+	var layerOrder=new Array();
+				
+				function clickMarker(feature, layer) {
+					
+					console.log(layer)//.properties.OBJECTID
+						
+				}
+
+				
+				var richtig = L.icon({
+			    iconUrl: 'leaf-green.png',
+			    shadowUrl: 'leaf-shadow.png',
+
+			    iconSize:     [19, 47.5], // size of the icon
+			    shadowSize:   [25, 32], // size of the shadow
+			    iconAnchor:   [11, 47], // point of the icon which will correspond to marker's location
+			    shadowAnchor: [2, 31],  // the same for the shadow
+				});
+				
+				var ungelost = L.icon({
+					iconUrl: 'leaf-orange.png',
+					shadowUrl: 'leaf-shadow.png',
+
+					iconSize:     [19, 47.5], // size of the icon
+					shadowSize:   [25, 32], // size of the shadow
+					iconAnchor:   [11, 47], // point of the icon which will correspond to marker's location
+					shadowAnchor: [2, 31],  // the same for the shadow
+				});
+				
+				var falsch = L.icon({
+					iconUrl: 'leaf-red.png',
+					shadowUrl: 'leaf-shadow.png',
+
+					iconSize:     [19, 47.5], // size of the icon
+					shadowSize:   [25, 32], // size of the shadow
+					iconAnchor:   [11, 47], // point of the icon which will correspond to marker's location
+					shadowAnchor: [2, 31],  // the same for the shadow
+				});
+				
+				var unsichtbar = L.circleMarker({
+					
+					opacity: 0
+				});
+				
+				
+				map.locate({setView: true, maxZoom: 17, watch: true});
+				map.on('locationfound', onLocationFound);
+				
+				var currentpos;
+				var firsttime = true;
+				var currentmarker;
+				var currentcircle;
+				
+				function onLocationFound(e) {
+					
+					//console.log(e);
+					
+					currentpos = e.latlng;
+					
+					if (!currentmarker) {
+						currentmarker = L.marker(e.latlng).addTo(map);
+						var radius = e.accuracy / 2;
+						currentcircle = L.circle(e.latlng, radius).addTo(map);
+					} else {
+						
+						currentmarker.setLatLng(e.latlng).update();
+						currentcircle.setLatLng(e.latlng).update();
+						
+					}
+					
+					
+					if (firsttime) {
+						
+						makeLayer();
+						firsttime = false;
+						
+					} else {
+						
+						deleteLayer();
+						makeLayer();
+						
+					}
+					
+				}
+				
+				var exp_BaumkatasterJSON;
+				var markerMap = {};
+				var d = new Date();
+				
+				function makeLayer () {
+					
+					exp_BaumkatasterJSON = new L.geoJson(exp_Baumkataster,{
+						//onEachFeature: clickMarker,
+						pointToLayer: function (feature, latlng) {
+							
+							var distance = currentpos.distanceTo(latlng);
+							console.log(feature);
+							
+							var i;
+							
+							if ( distance < 200) {
+								i = {icon: ungelost};
+							} else {
+								i = {opacity: 0};
+							}
+							
+							var marker = L.marker(latlng, i);
+							
+							var age = d.getFullYear() - feature.properties.pflanzjahr + 1;
+							
+							markerMap[feature.properties.objectid] = { m: marker, a: age };
+							
+							return marker;
+						}
+						
+					});
+					
+					feature_group.addLayer(exp_BaumkatasterJSON);
+					layerOrder[layerOrder.length] = exp_BaumkatasterJSON;
+					for (index = 0; index < layerOrder.length; index++) {
+						feature_group.removeLayer(layerOrder[index]);feature_group.addLayer(layerOrder[index]);
+					}
+					
+					//add comment sign to hide this layer on the map in the initial view.
+					exp_BaumkatasterJSON.addTo(map);
+					
+				}
+				
+				function deleteLayer () {
+					
+					map.removeLayer(exp_BaumkatasterJSON);
+					
+				}
+
+	</script>
+</body>
+</html>
+	
